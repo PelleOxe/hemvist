@@ -41,6 +41,7 @@ svg.ck{flex:1;min-height:0;width:100%}
 @keyframes fl{to{background:var(--warn);color:#000}}
 .board{background:#27403a;border:8px solid #8a6a43;border-radius:10px;color:#f4f4ee;width:100%;flex:1;min-height:0;padding:10px;font:26px/1.3 "Chalkboard SE","Bradley Hand","Marker Felt",cursive;text-align:left;resize:none;outline:none;overflow:auto}
 .bar2{display:flex;gap:6px;margin-top:6px;align-self:stretch;justify-content:space-between}
+.led{width:12px;height:12px;border-radius:50%;flex:none;background:#777}.led.ok{background:#3ddc6f;box-shadow:0 0 8px #3ddc6f}.led.bad{background:#ff4d4d;box-shadow:0 0 8px #ff4d4d}
 input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;margin:4px 0}
 dialog,.pop{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:420px}
 dialog::backdrop{background:rgba(0,0,0,.5)}
@@ -53,7 +54,7 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <header>
 <h1>Hemvist</h1>
 <div class="tabs" id="tabs"></div>
-<button id="cloud" title="Delning mellan enheter">☁</button>
+<button id="cloud" title="Delning mellan enheter">☁</button><span id="led" class="led off" title="Inte ansluten till grupp"></span>
 <button id="wake" title="Håll skärmen tänd">☀ Håll vaken</button>
 <button id="theme">◐</button>
 <button id="edit">Redigera</button>
@@ -81,9 +82,9 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">Texten lagras okrypterad i molnet. Skriv inget känsligt på tavlan.</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.04";
+const APP_VERSION = "0.1.05";
 const $ = id => document.getElementById(id);
-const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:2},tavla:{n:'Snabbmeddelande',w:3,h:2}};
+const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:3},tavla:{n:'Snabbmeddelande',w:3,h:2}};
 const KEY = 'hemvist_state';
 let S;
 function def(){return {theme:'dark',cur:0,clock:'analog',views:[
@@ -96,26 +97,52 @@ let editing=false;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function used(){return S.views.reduce((a,v)=>a.concat(v.blocks.map(b=>b.t)),[])}
 
-/* ---- Kökstimer ---- */
+/* ---- Kökstimer (analog äggklocka, ett varv = 60 min) ---- */
 const T={rem:0,end:0,run:false,ring:false};
-let actx=null;
-function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+let actx=null,panelUntil=0;
+function unlock(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.resume)actx.resume()}catch(e){}}
+function beep(){try{unlock();
  [0,.25,.5,.9,1.15,1.4].forEach(d=>{const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=d<.8?880:1175;o.connect(g);g.connect(actx.destination);
  const t=actx.currentTime+d;g.gain.setValueAtTime(.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22)})}catch(e){}
  if(navigator.vibrate)navigator.vibrate([200,100,200])}
 function fmt(s){s=Math.ceil(s/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function pol(a,r){const t=a*Math.PI/180;return [50+r*Math.sin(t),50-r*Math.cos(t)]}
 function tmr(){if(T.run){T.rem=Math.max(0,T.end-Date.now());if(T.rem===0){T.run=false;T.ring=true;beep()}}
- const d=$('tdisp');if(d){d.textContent=fmt(T.rem);d.parentNode.parentNode.classList.toggle('ring',T.ring)}
- const b=$('tgo');if(b)b.textContent=T.run?'Paus':'Start'}
+ const sv=$('tdial');if(!sv)return;
+ const a=Math.min(360,T.rem/10000);
+ $('tptr').setAttribute('transform','rotate('+a+' 50 50)');
+ let d='';if(a>=359.9)d='M50 50 m-42 0 a42 42 0 1 0 84 0 a42 42 0 1 0 -84 0Z';
+ else if(a>0){const p=pol(a,42);d='M50 50 L50 8 A42 42 0 '+(a>180?1:0)+' 1 '+p[0]+' '+p[1]+'Z'}
+ $('twedge').setAttribute('d',d);
+ $('tdig').textContent=fmt(T.rem);
+ const b=sv.closest('.blk');if(b)b.classList.toggle('ring',T.ring);
+ const show=!T.run||T.ring||Date.now()<panelUntil;$('tpanel').style.display=show?'flex':'none';
+ $('tgo').textContent=T.ring?'Tysta':T.run?'Paus':'Start'}
 function timerUI(el){
- el.innerHTML='<div class="big" id="tdisp">00:00</div><div class="row" id="tpre"></div><div class="row"><button id="tgo">Start</button><button id="trs">Nollställ</button></div>';
+ let k='';for(let i=0;i<60;i++){const L=i%5?2.2:5;k+='<line x1="50" y1="6" x2="50" y2="'+(6+L)+'" stroke="var(--soft)" stroke-width="'+(i%5?.4:1)+'" transform="rotate('+(i*6)+' 50 50)"/>'}
+ let n='';for(let i=0;i<60;i+=5){const p=pol(i*6,34);n+='<text x="'+p[0]+'" y="'+(p[1]+2)+'" text-anchor="middle" font-size="5.5" fill="var(--soft)">'+i+'</text>'}
+ el.innerHTML='<svg id="tdial" class="ck" viewBox="0 0 100 100" style="touch-action:none"><circle cx="50" cy="50" r="46" fill="var(--bg)" stroke="var(--line)"/><path id="twedge" fill="var(--warn)" opacity=".8"/>'+k+n+
+  '<g id="tptr"><line x1="50" y1="50" x2="50" y2="9" stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round"/><circle cx="50" cy="11" r="3.4" fill="var(--ink)"/></g><circle cx="50" cy="50" r="9" fill="var(--card)" stroke="var(--ink)" stroke-width="1.2"/><text id="tdig" x="50" y="80" text-anchor="middle" font-size="9" fill="var(--ink)">00:00</text></svg>'+
+  '<div id="tpanel" class="row" style="flex-direction:row"><span class="row" id="tpre" style="margin:0"></span><span class="row" style="margin:0"><button id="tgo" class="on">Start</button><button id="trs">Nollställ</button></span></div>';
  [[30,'½ min'],[60,'1 min'],[180,'3 min'],[300,'5 min'],[600,'10 min']].forEach(p=>{
   const b=document.createElement('button');b.textContent='+'+p[1];
-  b.onclick=()=>{T.ring=false;T.rem+=p[0]*1000;if(T.run)T.end+=p[0]*1000;try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}tmr()};
+  b.onclick=()=>{unlock();T.ring=false;T.rem=Math.min(3600000,T.rem+p[0]*1000);if(T.run)T.end=Date.now()+T.rem;panelUntil=Date.now()+8000;tmr()};
   $('tpre').appendChild(b)});
- $('tgo').onclick=()=>{try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}
-  if(T.ring){T.ring=false;T.rem=0}else if(T.run){T.run=false}else if(T.rem>0){T.end=Date.now()+T.rem;T.run=true}tmr()};
- $('trs').onclick=()=>{T.run=false;T.ring=false;T.rem=0;tmr()};tmr()}
+ $('tgo').onclick=()=>{unlock();
+  if(T.ring){T.ring=false;T.rem=0}else if(T.run){T.run=false}else if(T.rem>0){T.end=Date.now()+T.rem;T.run=true;panelUntil=0}tmr()};
+ $('trs').onclick=()=>{T.run=false;T.ring=false;T.rem=0;panelUntil=0;tmr()};
+ const sv=$('tdial');let dn=false,mv=false,sx=0,sy=0,pm=0;
+ const ang=e=>{const r=sv.getBoundingClientRect();let a=Math.atan2(e.clientX-(r.left+r.width/2),-(e.clientY-(r.top+r.height/2)))*180/Math.PI;return a<0?a+360:a};
+ sv.addEventListener('pointerdown',e=>{unlock();dn=true;mv=false;sx=e.clientX;sy=e.clientY;pm=Math.round(T.rem/60000);panelUntil=Date.now()+8000;try{sv.setPointerCapture(e.pointerId)}catch(x){}tmr()});
+ sv.addEventListener('pointermove',e=>{if(!dn)return;
+  if(!mv){if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)<6)return;mv=true}
+  let m=Math.round(ang(e)/6);if(m>=60)m=0;
+  if(pm>=45&&m<=15)m=60;else if(pm<=15&&m>=45)m=0;
+  pm=m;T.ring=false;T.rem=m*60000;
+  if(T.run){if(m===0)T.run=false;else T.end=Date.now()+T.rem}
+  panelUntil=Date.now()+8000;tmr()});
+ const up=()=>{dn=false};sv.addEventListener('pointerup',up);sv.addEventListener('pointercancel',up);
+ tmr()}
 
 /* ---- Klocka ---- */
 function clockUI(el){
@@ -136,7 +163,10 @@ function clk(){const n=new Date();
  const cb=document.querySelector('.tl');if(cb)cb.style.display=editing?'flex':'none'}
 
 /* ---- Snabbmeddelande ---- */
-let pt=null,pend=null,cstat='',lastEdit=0;
+let pt=null,pend=null,cstat='',lastEdit=0,lastOk=0;
+window.hvLink=ok=>{lastOk=ok?Date.now():0;led()};
+function led(){const e=$('led');if(!e)return;const w=WS();const s=!w?'off':(Date.now()-lastOk<45000?'ok':'bad');
+ e.className='led '+s;e.title=s==='ok'?'Kontakt med molnet':s==='bad'?'Ingen kontakt med molnet':'Inte ansluten till grupp'}
 function lsSet(v){try{localStorage.setItem('hemvist_tavla',v)}catch(e){}}
 function WS(){try{return JSON.parse(localStorage.getItem('hemvist_ws')||'null')}catch(e){return null}}
 function cst(){const e=$('cst');if(e)e.textContent=WS()?(cstat||'Ansluter…'):'Sparas bara på den här enheten'}
@@ -230,7 +260,7 @@ $('theme').onclick=()=>{S.theme=S.theme==='dark'?'light':'dark';save();render()}
 $('edit').onclick=()=>{editing=!editing;render()};
 $('ver').textContent=APP_VERSION;$('ver2').textContent=APP_VERSION;
 load();render();
-setInterval(()=>{clk();tmr()},1000);
+setInterval(()=>{clk();tmr();led()},1000);
 if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script>
 <script type="module">
@@ -250,15 +280,15 @@ function start(){stop();if(!user||!ws)return;
   const d=snap.data();
   if(snap.exists()&&!snap.metadata.hasPendingWrites){if(d.by!==dev)window.hvRemote(d.text||'');else window.hvOwn()}
   if(!snap.exists()&&!snap.metadata.fromCache){const t=window.hvLocal();if(t)window.hvPush(t)}
-  window.hvStatus((snap.metadata.fromCache?'Offline, lokal kopia ':'Synkad ')+tm())},
-  err=>window.hvStatus('Fel: '+err.code));setTimeout(poll,500)}
+  window.hvLink(!snap.metadata.fromCache);window.hvStatus((snap.metadata.fromCache?'Offline, lokal kopia ':'Synkad ')+tm())},
+  err=>{window.hvLink(false);window.hvStatus('Fel: '+err.code)});setTimeout(poll,500)}
 window.hvPush=text=>{if(!user||!ws)return;setDoc(ref(),{text:text,by:dev,updatedAt:serverTimestamp()}).catch(e=>window.hvStatus('Fel: '+e.code))};
 window.hvConnect=async(kod,pin)=>{ws=await sha(kod.trim().toLowerCase()+"::"+pin.trim());
  localStorage.setItem('hemvist_ws',JSON.stringify({wsId:ws,kod:kod.trim(),pin:pin.trim()}));start()};
 const tm=()=>new Date().toLocaleTimeString('sv-SE');
 async function poll(){if(!user||!ws||document.visibilityState!=='visible')return;
- try{const s=await getDocFromServer(ref());const d=s.data();if(s.exists()&&d.by!==dev)window.hvRemote(d.text||'');window.hvStatus('Synkad '+tm())}
- catch(e){window.hvStatus('Ingen kontakt '+(e.code||''))}}
+ try{const s=await getDocFromServer(ref());const d=s.data();if(s.exists()&&d.by!==dev)window.hvRemote(d.text||'');window.hvLink(true);window.hvStatus('Synkad '+tm())}
+ catch(e){window.hvLink(false);window.hvStatus('Ingen kontakt '+(e.code||''))}}
 setInterval(poll,15000);
 document.addEventListener('visibilitychange',()=>setTimeout(poll,300));
 ['focus','online','pageshow'].forEach(ev=>window.addEventListener(ev,()=>setTimeout(poll,300)));
