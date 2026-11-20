@@ -42,6 +42,17 @@ svg.ck{flex:1;min-height:0;width:100%}
 .board{background:#27403a;border:8px solid #8a6a43;border-radius:10px;color:#f4f4ee;width:100%;flex:1;min-height:0;padding:10px;font:26px/1.3 "Chalkboard SE","Bradley Hand","Marker Felt",cursive;text-align:left;resize:none;outline:none;overflow:auto}
 .bar2{display:flex;gap:6px;margin-top:6px;align-self:stretch;justify-content:space-between}
 .led{width:12px;height:12px;border-radius:50%;flex:none;background:#777}.led.ok{background:#3ddc6f;box-shadow:0 0 8px #3ddc6f}.led.bad{background:#ff4d4d;box-shadow:0 0 8px #ff4d4d}
+.wxc{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%}
+.wic{font-size:46px;line-height:1}.wlab{font-size:12px;letter-spacing:.1em;color:var(--soft)}
+.wtemp{font-size:72px;font-weight:300;line-height:1;color:var(--acc)}.wtemp small{font-size:28px;vertical-align:top}
+.wdesc{font-style:italic;font-size:17px}.wsm{color:var(--soft);font-size:14px}.wwind{font-size:15px;margin-top:6px}.wwind .g{color:#ff9b4c}
+.wbf{font-size:13px;color:var(--soft)}.wsrc,.wupd{font-size:12px;color:var(--soft)}.wold{color:#ff6b6b}
+.wxt{position:absolute;top:0;right:0;padding:3px 10px;font-size:12px;z-index:1}
+.wxe{display:flex;flex-direction:column;width:100%;height:100%;gap:4px;padding-top:26px}
+.wxs{width:100%;flex:1;min-height:0}.wxs text{font-size:11px;fill:var(--soft)}.wxs .gr{stroke:var(--line);stroke-width:1}
+.eko{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}.ekt{font-weight:600;font-size:15px;text-align:center}
+.ekb{font-size:32px;width:72px;height:72px;border-radius:50%;padding:0}.eko input[type=range]{padding:0;border:none;background:transparent;margin:0}
+.ekc{display:flex;justify-content:space-between;width:100%;font-size:12px;color:var(--soft)}
 input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;margin:4px 0}
 dialog,.pop{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:420px}
 dialog::backdrop{background:rgba(0,0,0,.5)}
@@ -82,14 +93,14 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">Texten lagras okrypterad i molnet. Skriv inget känsligt på tavlan.</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.06";
+const APP_VERSION = "0.1.08";
 const $ = id => document.getElementById(id);
-const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:3},tavla:{n:'Snabbmeddelande',w:3,h:2}};
+const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:3},tavla:{n:'Snabbmeddelande',w:3,h:2},vader:{n:'Väder',w:2,h:3},eko:{n:'Dagens Eko',w:2,h:2}};
 const KEY = 'hemvist_state';
 let S;
 function def(){return {theme:'dark',cur:0,clock:'analog',views:[
- {name:'Hemmet',blocks:[{t:'klocka',w:2,h:2},{t:'tavla',w:3,h:2}]},
- {name:'Köket',blocks:[{t:'timer',w:2,h:2}]},{name:'Annat',blocks:[]}]};}
+ {name:'Hemmet',blocks:[{t:'klocka',w:2,h:2},{t:'tavla',w:3,h:2},{t:'vader',w:2,h:3}]},
+ {name:'Köket',blocks:[{t:'timer',w:2,h:2}]},{name:'Annat',blocks:[{t:'eko',w:2,h:2}]}]};}
 function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):def()}catch(e){S=def()}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
@@ -122,7 +133,7 @@ function timerUI(el){
  let k='';for(let i=0;i<60;i++){const L=i%5?2.2:5;k+='<line x1="50" y1="6" x2="50" y2="'+(6+L)+'" stroke="var(--ink)" opacity=".7" stroke-width="'+(i%5?.4:1)+'" transform="rotate('+(i*6)+' 50 50)"/>'}
  let n='';for(let i=0;i<60;i+=5){const p=pol(i*6,34);n+='<text x="'+p[0]+'" y="'+(p[1]+2)+'" text-anchor="middle" font-size="6.2" font-weight="700" fill="var(--ink)" stroke="var(--bg)" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke">'+i+'</text>'}
  el.innerHTML='<svg id="tdial" class="ck" viewBox="0 0 100 100" style="touch-action:none"><circle cx="50" cy="50" r="46" fill="var(--bg)" stroke="var(--line)"/><path id="twedge" fill="var(--warn)" opacity=".55"/>'+k+n+
-  '<g id="tptr"><line x1="50" y1="50" x2="50" y2="19" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><polygon points="50,6 44.5,20 55.5,20" fill="var(--ink)" stroke="var(--bg)" stroke-width=".8" stroke-linejoin="round"/></g><circle cx="50" cy="50" r="9" fill="var(--card)" stroke="var(--ink)" stroke-width="1.2"/><text id="tdig" x="50" y="80" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--ink)" stroke="var(--bg)" stroke-width="2.2" stroke-linejoin="round" paint-order="stroke">00:00</text></svg>'+
+  '<g id="tptr"><line x1="50" y1="50" x2="50" y2="19" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><polygon points="50,6 44.5,20 55.5,20" fill="var(--ink)" stroke="var(--bg)" stroke-width=".8" stroke-linejoin="round"/></g><circle cx="50" cy="50" r="9" fill="var(--card)" stroke="var(--ink)" stroke-width="1.2"/><text id="tdig" x="50" y="69" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--ink)" stroke="var(--bg)" stroke-width="2.2" stroke-linejoin="round" paint-order="stroke">00:00</text></svg>'+
   '<div id="tpanel" class="row" style="flex-direction:row"><span class="row" id="tpre" style="margin:0"></span><span class="row" style="margin:0"><button id="tgo" class="on">Start</button><button id="trs">Nollställ</button></span></div>';
  [[30,'½ min'],[60,'1 min'],[180,'3 min'],[300,'5 min'],[600,'10 min']].forEach(p=>{
   const b=document.createElement('button');b.textContent='+'+p[1];
@@ -184,7 +195,7 @@ function boardUI(el){
  t.oninput=()=>{lastEdit=Date.now();pend=null;lsSet(t.value);clearTimeout(pt);pt=setTimeout(()=>{if(window.hvPush)window.hvPush(t.value)},600)};
  t.onblur=()=>{if(pend!==null){applyRemote(pend);pend=null}};
  $('bs').onclick=()=>{if(confirm('Sudda tavlan?')){t.value='';lsSet('');if(window.hvPush)window.hvPush('')}}}
-const UI={klocka:clockUI,timer:timerUI,tavla:boardUI};
+const UI={klocka:clockUI,timer:timerUI,tavla:boardUI,vader:wxUI,eko:ekUI};
 
 /* ---- Rutnät och redigering ---- */
 function render(){
@@ -199,7 +210,7 @@ function render(){
   const d=document.createElement('div');d.className='blk';d.style.gridColumn='span '+b.w;d.style.gridRow='span '+b.h;
   d.innerHTML='<h2>'+TYPES[b.t].n+'</h2><div class="body"></div><div class="tools"></div>';
   g.appendChild(d);
-  UI[b.t](d.querySelector('.body'));
+  UI[b.t](d.querySelector('.body'),b);
   const tl=d.querySelector('.tools');
   const add=(txt,f,dis)=>{const x=document.createElement('button');x.textContent=txt;x.disabled=!!dis;x.onclick=f;tl.appendChild(x)};
   add('◀',()=>mv(i,-1),i===0);add('▶',()=>mv(i,1),i===v.blocks.length-1);
@@ -215,6 +226,129 @@ function addMenu(){
  const k=free[0]&&free.length===1?free[0]:prompt('Lägg till block:\n'+free.map((x,i)=>(i+1)+' = '+TYPES[x].n).join('\n'));
  const t=free.indexOf(k)>=0?k:free[(parseInt(k,10)||0)-1];
  if(!t)return;S.views[S.cur].blocks.push({t:t,w:TYPES[t].w,h:TYPES[t].h});save();render()}
+
+/* ---- Väder (Open-Meteo + SMHI-observationer, efter KWA) ---- */
+const WXLAT=56.009,WXLON=12.697,WXKEY='hemvist_wx';
+const WX={d:null,o:null,t:0,err:'',busy:false};
+try{const c=JSON.parse(localStorage.getItem(WXKEY)||'null');if(c&&c.d){WX.d=c.d;WX.o=c.o;WX.t=c.t}}catch(e){}
+const WDESC={0:'Klart',1:'Mestadels klart',2:'Delvis molnigt',3:'Mulet',45:'Dimma',48:'Rimfrostdimma',51:'Lätt duggregn',53:'Duggregn',55:'Kraftigt duggregn',61:'Lätt regn',63:'Regn',65:'Kraftigt regn',71:'Lätt snöfall',73:'Snöfall',75:'Kraftigt snöfall',77:'Snökorn',80:'Lätta skurar',81:'Skurar',82:'Kraftiga skurar',85:'Snöbyar',86:'Kraftiga snöbyar',95:'Åska',96:'Åska med hagel',99:'Kraftig åska med hagel'};
+function wic(c,day){const m={0:day?'☀️':'🌙',1:day?'🌤':'🌙',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'❄️',75:'❄️',77:'🌨',80:'🌦',81:'🌧',82:'⛈',85:'🌨',86:'🌨',95:'⛈',96:'⛈',99:'⛈'};return m[c]||'🌡'}
+const BFN=['Stiltje','Flört','Svag vind','Lätt bris','Måttlig bris','Frisk bris','Hård bris','Styv bris','Kuling','Halv storm','Storm','Svår storm','Orkan'],BFT=[0,.3,1.6,3.4,5.5,8,10.8,13.9,17.2,20.8,24.5,28.5,32.7];
+function bfi(v){let b=0;for(let i=BFT.length-1;i>=0;i--)if(v>=BFT[i]){b=i;break}return b}
+const nf=(v,d)=>v==null||isNaN(v)?'—':v.toFixed(d==null?1:d).replace('.',',').replace('-','−');
+function hav(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2),z=x*x+Math.cos(a*r)*Math.cos(c*r)*y*y;return 12742*Math.asin(Math.sqrt(z))}
+async function wxObs(){
+ let st=null;try{st=JSON.parse(localStorage.getItem('hemvist_wxst')||'null')}catch(e){}
+ const B='https://opendata-download-metobs.smhi.se/api/version/latest/parameter/';
+ if(!st||Date.now()-st.t>2592e6){const r=await fetch(B+'4/station.json');const j=await r.json();let best=null,bd=1e9;
+  (j.station||[]).forEach(s=>{if(!s.active)return;const k=hav(WXLAT,WXLON,s.latitude,s.longitude);if(k<bd){bd=k;best=s}});
+  if(!best)throw new Error('ingen station');st={id:best.id,name:best.name,dist:bd,t:Date.now()};try{localStorage.setItem('hemvist_wxst',JSON.stringify(st))}catch(e){}}
+ const o={station:st.name,dist:st.dist};
+ await Promise.all([[4,'wind'],[21,'gust'],[3,'dir'],[1,'temp']].map(async p=>{try{
+  const r=await fetch(B+p[0]+'/station/'+st.id+'/period/latest-hour/data.json');if(!r.ok)return;const j=await r.json();
+  const v=(j.value||[]).filter(x=>x.value!=null&&x.value!==''&&x.quality!=='Z');if(!v.length)return;
+  o[p[1]]=parseFloat(v[v.length-1].value);o.time=v[v.length-1].date}catch(e){}}));
+ return (o.wind!=null||o.temp!=null)?o:null}
+async function wxLoad(){if(WX.busy)return;WX.busy=true;
+ try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),12000);
+  const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+WXLAT+'&longitude='+WXLON+'&hourly=temperature_2m,apparent_temperature,weathercode,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m&current_weather=true&wind_speed_unit=ms&past_days=1&forecast_days=3&timezone=auto',{signal:c.signal});
+  clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);
+  WX.d=await r.json();WX.err='';WX.t=Date.now();
+  try{const o=await wxObs();if(o)WX.o=o}catch(e){}
+  try{localStorage.setItem(WXKEY,JSON.stringify({d:WX.d,o:WX.o,t:WX.t}))}catch(e){}
+ }catch(e){WX.err=navigator.onLine===false?'Ingen anslutning':'Kunde inte hämta väder'}
+ WX.busy=false;wxDraw()}
+function wxCur(){const d=WX.d;if(!d||!d.hourly||!d.current_weather)return null;const H=d.hourly;let i=H.time.indexOf(d.current_weather.time.slice(0,13)+':00');if(i<0)i=0;return {H:H,cw:d.current_weather,idx:i}}
+function arrow(dir,col){return '<svg width="18" height="18" viewBox="-10 -10 20 20" style="vertical-align:middle"><g transform="rotate('+(dir+180)+')"><path d="M0 -8 L0 8 M0 -8 L-4 -3 M0 -8 L4 -3" stroke="'+(col||'currentColor')+'" stroke-width="2" fill="none" stroke-linecap="round"/></g></svg>'}
+function wxCompact(c){
+ const o=(WX.o&&WX.o.time&&Date.now()-WX.o.time<9e6)?WX.o:null,H=c.H,i=c.idx;
+ const T=o&&o.temp!=null?o.temp:c.cw.temperature;
+ const wd=o&&o.wind!=null?o.wind:H.wind_speed_10m[i],gu=o&&o.gust!=null?o.gust:H.wind_gusts_10m[i],dr=o&&o.dir!=null?o.dir:H.wind_direction_10m[i];
+ const bm=BFN[bfi(wd)],bg=bfi(gu)!==bfi(wd)?BFN[bfi(gu)]:'';
+ const age=Date.now()-WX.t,hm=new Date(WX.t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
+ return '<div class="wxc"><div class="wic">'+wic(H.weathercode[i],c.cw.is_day!==0)+'</div><div class="wlab">NU</div>'+
+  '<div class="wtemp">'+nf(Math.round(T),0)+'<small>°</small></div><div class="wdesc">'+(WDESC[H.weathercode[i]]||'—')+'</div>'+
+  '<div class="wsm">Känns som '+nf(H.apparent_temperature[i])+' °C</div>'+
+  '<div class="wwind">💨 <b>'+nf(wd)+' m/s</b> · ▲ <b class="g">'+nf(gu)+' m/s</b> '+arrow(dr)+'</div>'+
+  '<div class="wbf">'+bm+(bg?' <span style="color:#ff9b4c">Vindbyarna '+bg+'</span>':'')+'</div>'+
+  '<div class="wsrc">'+(o?'📡 SMHI '+o.station+' ('+Math.round(o.dist)+' km)':'Open-Meteo (modell)')+'</div>'+
+  '<div class="wupd'+(age>2700000?' wold':'')+'">Uppdaterad '+hm+(WX.err?' · '+WX.err:'')+'</div></div>'}
+function wxExt(c){
+ const H=c.H,a=Math.max(0,c.idx-12),b=Math.min(H.time.length-1,c.idx+36),n=b-a+1,W=600,HH=170,L=36,R=40,T=30,B=20,PW=W-L-R,PH=HH-T-B;
+ const X=i=>L+PW*i/(n-1),now=c.idx-a,S=k=>H[k].slice(a,b+1),hr=i=>+H.time[a+i].slice(11,13);
+ let xl='';for(let i=0;i<n;i++)if(hr(i)%6===0)xl+='<text x="'+X(i)+'" y="'+(HH-5)+'" text-anchor="middle">'+String(hr(i)).padStart(2,'0')+'</text><line x1="'+X(i)+'" x2="'+X(i)+'" y1="'+T+'" y2="'+(T+PH)+'" class="gr"/>';
+ const nl=lab=>'<line x1="'+X(now)+'" x2="'+X(now)+'" y1="'+T+'" y2="'+(T+PH)+'" stroke="var(--ink)" stroke-dasharray="2 3" opacity=".8"/><text x="'+X(now)+'" y="11" text-anchor="middle" style="fill:var(--ink)">'+lab+'</text>';
+ const m=S('wind_speed_10m'),g=S('wind_gusts_10m'),mx=Math.max(6,Math.ceil(Math.max.apply(null,g)/3)*3),Y=v=>T+PH*(1-v/mx);
+ const pts=(arr,f)=>arr.map((v,i)=>X(i).toFixed(1)+','+f(v).toFixed(1)).join(' ');
+ let gl='';for(let k=0;k<=4;k++){const v=mx*k/4;gl+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" class="gr"/><text x="'+(L-4)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+Math.round(v)+'</text>'}
+ let ar='';for(let i=0;i<n;i+=3)ar+='<g transform="translate('+X(i)+',21) rotate('+(H.wind_direction_10m[a+i]+180)+')"><path d="M0 -6 L0 6 M0 -6 L-3 -2 M0 -6 L3 -2" stroke="#4fd1c5" fill="none" stroke-width="1.6" stroke-linecap="round"/></g>';
+ const w1='<svg viewBox="0 0 600 170" class="wxs">'+gl+xl+'<polygon points="'+X(0)+','+Y(0)+' '+pts(m,Y)+' '+X(n-1)+','+Y(0)+'" fill="#4fd1c5" opacity=".25"/><polyline points="'+pts(g,Y)+'" fill="none" stroke="#ff9b4c" stroke-width="1.6" stroke-dasharray="4 3"/><polyline points="'+pts(m,Y)+'" fill="none" stroke="#4fd1c5" stroke-width="2"/>'+ar+nl('Nu · '+nf(m[now])+' · '+nf(g[now])+' m/s')+'<text x="4" y="'+(T-4)+'" style="fill:#4fd1c5">m/s</text></svg>';
+ const t=S('temperature_2m'),cd=S('weathercode'),pr=S('precipitation');
+ let lo=Math.floor(Math.min.apply(null,t)-1),hi=Math.ceil(Math.max.apply(null,t)+1);if(hi-lo<6)hi=lo+6;
+ const Y2=v=>T+PH*(1-(v-lo)/(hi-lo)),st=(hi-lo)>14?5:2;let g2='';
+ for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st)g2+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y2(v)+'" y2="'+Y2(v)+'" class="gr"/><text x="'+(L-4)+'" y="'+(Y2(v)+4)+'" text-anchor="end">'+v+'°</text>';
+ if(lo<0&&hi>0)g2+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y2(0)+'" y2="'+Y2(0)+'" stroke="#7aa7ff" stroke-dasharray="3 3" opacity=".7"/>';
+ let ic='';for(let i=0;i<n;i+=3)ic+='<text x="'+X(i)+'" y="21" text-anchor="middle" style="font-size:14px;fill:initial">'+wic(cd[i],hr(i)>=6&&hr(i)<=20)+'</text>';
+ const pm=Math.max(.5,Math.max.apply(null,pr)),bw=PW/n*.7;let pb='';
+ pr.forEach((p,i)=>{if(p>0){const h2=26*p/pm;pb+='<rect x="'+(X(i)-bw/2)+'" y="'+(T+PH-h2)+'" width="'+bw+'" height="'+h2+'" fill="var(--acc)" opacity=".55"/>'}});
+ const w2='<svg viewBox="0 0 600 170" class="wxs">'+g2+xl+pb+'<polygon points="'+X(0)+','+(T+PH)+' '+pts(t,Y2)+' '+X(n-1)+','+(T+PH)+'" fill="#7aa7ff" opacity=".28"/><polyline points="'+pts(t,Y2)+'" fill="none" stroke="#7aa7ff" stroke-width="2"/>'+ic+nl('Nu · '+nf(t[now])+' °C')+'<text x="'+(W-R+4)+'" y="'+(T+PH-2)+'">'+nf(pm)+' mm</text></svg>';
+ return w1+w2}
+let wxEl=null,wxB=null;
+function wxDraw(){if(!wxEl||!document.body.contains(wxEl))return;
+ const c=wxCur(),ext=wxB&&wxB.mode==='ext';
+ let h='<button class="wxt" id="wxt">'+(ext?'Kompakt':'Utökad')+'</button>';
+ if(!c)h+='<div class="date">'+(WX.err||'Hämtar väder…')+'</div>';
+ else{try{h+=ext?'<div class="wxe">'+wxExt(c)+'</div>':wxCompact(c)}catch(e){h+='<div class="date">Väderdata kunde inte visas</div>'}}
+ wxEl.innerHTML=h;
+ $('wxt').onclick=()=>{if(ext){wxB.mode='cmp';wxB.w=wxB.w0||2;wxB.h=wxB.h0||3}else{wxB.w0=wxB.w;wxB.h0=wxB.h;wxB.mode='ext';wxB.w=Math.max(wxB.w,4);wxB.h=Math.max(wxB.h,3)}save();render()}}
+function wxUI(el,b){wxEl=el;wxB=b;el.style.position='relative';el.style.alignItems='stretch';el.style.justifyContent='flex-start';wxDraw();if(Date.now()-WX.t>300000)wxLoad()}
+setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-WX.t>600000)wxLoad()},60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&Date.now()-WX.t>300000)wxLoad()});
+
+/* ---- Dagens Eko (Sveriges Radio, Ekot senaste nytt) ---- */
+const EK={ep:null,next:null,t:0,err:'',busy:false};
+try{const c=JSON.parse(localStorage.getItem('hemvist_ek')||'null');if(c&&c.ep){EK.ep=c.ep;EK.t=c.t}}catch(e){}
+const EA=new Audio();EA.preload='none';if(EK.ep)EA.src=EK.ep.url;
+const SRAPI='https://api.sr.se/api/v2/';
+async function srj(p){const r=await fetch(SRAPI+p+(p.indexOf('?')<0?'?':'&')+'format=json');if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function ekId(){let id=null;try{id=localStorage.getItem('hemvist_ekid')}catch(e){}if(id)return id;
+ try{const p=await srj('programs/5380');if(p.program&&/senaste nytt/i.test(p.program.name))id='5380'}catch(e){}
+ if(!id){const l=await srj('programs/index?pagination=false');const f=(l.programs||[]).find(x=>/ekot senaste nytt/i.test(x.name));if(f)id=String(f.id)}
+ if(!id)throw new Error('Hittar inte programmet');try{localStorage.setItem('hemvist_ekid',id)}catch(e){}return id}
+function srDate(s){const m=/\d+/.exec(s||'');return m?+m[0]:0}
+async function ekLoad(){if(EK.busy)return;EK.busy=true;
+ try{const id=await ekId();const j=await srj('episodes/index?programid='+id+'&size=5');
+  const eps=(j.episodes||[]).map(e=>{const lp=e.listenpodfile||{},dp=e.downloadpodfile||{},bf=e.broadcast&&e.broadcast.broadcastfiles&&e.broadcast.broadcastfiles[0];
+   return {title:e.title||'Ekot senaste nytt',time:srDate(e.publishdateutc),url:lp.url||dp.url||(bf&&bf.url)||'',dur:lp.duration||dp.duration||0}}).filter(e=>e.url).sort((a,b)=>b.time-a.time);
+  if(!eps.length)throw new Error('Inga avsnitt');
+  const n=eps[0];EK.err='';EK.t=Date.now();
+  if(!EK.ep||EK.ep.url!==n.url){if(EA.paused){EK.ep=n;EK.next=null;EA.src=n.url}else EK.next=n}
+  try{localStorage.setItem('hemvist_ek',JSON.stringify({ep:EK.ep,t:EK.t}))}catch(e){}
+ }catch(e){EK.err=navigator.onLine===false?'Ingen anslutning':'Kunde inte hämta senaste avsnittet'}
+ EK.busy=false;ekDraw()}
+const mmss=s=>{s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+function ekProg(){const e=EK.ep;if(!e)return;const s=$('eks');if(!s)return;
+ const d=isFinite(EA.duration)&&EA.duration>0?EA.duration:e.dur;
+ if(!s.dataset.drag)s.value=d?Math.min(1000,EA.currentTime/d*1000):0;
+ $('ekn').textContent=mmss(EA.currentTime);$('ekd').textContent=mmss(d);$('ekp').textContent=EA.paused?'▶':'⏸'}
+['play','pause','timeupdate','loadedmetadata','durationchange'].forEach(ev=>EA.addEventListener(ev,ekProg));
+EA.addEventListener('ended',()=>{if(EK.next){EK.ep=EK.next;EK.next=null;EA.src=EK.ep.url}ekDraw()});
+EA.addEventListener('error',()=>{EK.err='Kunde inte spela ljudet';ekDraw()});
+let ekEl=null;
+function ekDraw(){if(!ekEl||!document.body.contains(ekEl))return;const e=EK.ep;
+ if(!e){ekEl.innerHTML='<div class="date">'+(EK.err||'Hämtar Ekot…')+'</div><div class="row"><button id="ekr">Försök igen</button></div><div class="wsrc"><a href="https://www.sverigesradio.se/poddar/ekot-senaste-nytt" target="_blank" rel="noopener" style="color:var(--acc)">Öppna hos Sveriges Radio</a></div>';
+  $('ekr').onclick=ekLoad;return}
+ const d=new Date(e.time),idag=d.toDateString()===new Date().toDateString();
+ const pub=e.time?(idag?'Idag ':d.toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'})+' ')+d.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}):'';
+ ekEl.innerHTML='<div class="eko"><div class="ekt">'+e.title.replace(/</g,'&lt;')+'</div><div class="date" style="margin:0">'+pub+(EK.next?' · nyare avsnitt väntar':'')+'</div>'+
+  '<button id="ekp" class="ekb on">▶</button><input type="range" id="eks" min="0" max="1000" value="0"><div class="ekc"><span id="ekn">0:00</span><span id="ekd">0:00</span></div>'+
+  '<div class="row" style="margin:0"><button id="ekr">Hämta senaste</button></div><div class="wsrc">Sveriges Radio · Ekot senaste nytt'+(EK.err?' · '+EK.err:'')+'</div></div>';
+ $('ekp').onclick=()=>{if(EA.paused){if(EK.next&&EA.currentTime===0){EK.ep=EK.next;EK.next=null;EA.src=EK.ep.url}EK.err='';const p=EA.play();if(p&&p.catch)p.catch(()=>{EK.err='Kunde inte spela ljudet';ekDraw()})}else EA.pause()};
+ const s=$('eks');s.oninput=()=>{s.dataset.drag='1';const d=isFinite(EA.duration)&&EA.duration>0?EA.duration:e.dur;if(d)EA.currentTime=s.value/1000*d;ekProg()};
+ s.onchange=()=>{delete s.dataset.drag};
+ $('ekr').onclick=ekLoad;ekProg()}
+function ekUI(el){ekEl=el;el.style.alignItems='stretch';el.style.justifyContent='flex-start';ekDraw();if(!EK.ep||Date.now()-EK.t>300000)ekLoad()}
+setInterval(()=>{if(document.visibilityState==='visible'&&EA.paused&&Date.now()-EK.t>600000)ekLoad()},60000);
 
 /* ---- Delning (Firebase, se modulskriptet längst ner) ---- */
 const od=d=>d.showModal?d.showModal():d.setAttribute('open','');
