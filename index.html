@@ -70,7 +70,7 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">© 2026 Per Andersson</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.00";
+const APP_VERSION = "0.1.01";
 const $ = id => document.getElementById(id);
 const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:2},tavla:{n:'Snabbmeddelande',w:3,h:2}};
 const KEY = 'hemvist_state';
@@ -146,14 +146,14 @@ function render(){
  v.blocks.forEach((b,i)=>{
   const d=document.createElement('div');d.className='blk';d.style.gridColumn='span '+b.w;d.style.gridRow='span '+b.h;
   d.innerHTML='<h2>'+TYPES[b.t].n+'</h2><div class="body"></div><div class="tools"></div>';
+  g.appendChild(d);
   UI[b.t](d.querySelector('.body'));
   const tl=d.querySelector('.tools');
   const add=(txt,f,dis)=>{const x=document.createElement('button');x.textContent=txt;x.disabled=!!dis;x.onclick=f;tl.appendChild(x)};
   add('◀',()=>mv(i,-1),i===0);add('▶',()=>mv(i,1),i===v.blocks.length-1);
   add('B−',()=>sz(b,'w',-1));add('B+',()=>sz(b,'w',1));add('H−',()=>sz(b,'h',-1));add('H+',()=>sz(b,'h',1));
   add('→ '+S.views[(S.cur+1)%S.views.length].name,()=>{S.views[(S.cur+1)%S.views.length].blocks.push(v.blocks.splice(i,1)[0]);save();render()});
-  add('✕',()=>{v.blocks.splice(i,1);save();render()});
-  g.appendChild(d)});
+  add('✕',()=>{v.blocks.splice(i,1);save();render()})});
  tmr();}
 function mv(i,d){const a=S.views[S.cur].blocks;const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];save();render()}
 function sz(b,k,d){b[k]=clamp(b[k]+d,1,k==='w'?6:4);save();render()}
