@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hemvist">
+<title>Hemvist</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{--bg:#0f1115;--bar:#14171c;--card:#1b1f27;--ink:#eceff4;--soft:#8b94a3;--acc:#4c8dff;--line:#2a303b;--ok:#4cd07d;--warn:#ff8a4c}
+[data-theme="light"]{--bg:#eef0f4;--bar:#fff;--card:#fff;--ink:#1a1d23;--soft:#6a7280;--acc:#2866e0;--line:#d6dae2}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;height:100vh;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);overflow:hidden}
+header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bar);border-bottom:1px solid var(--line);flex:none}
+header h1{font-size:18px;margin:0 6px 0 0}
+.tabs{display:flex;gap:6px;flex:1;overflow-x:auto}
+button{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+button:disabled{opacity:.4}
+main{flex:1;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
+#grid{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:minmax(110px,1fr);grid-auto-flow:dense;gap:12px;min-height:100%}
+.blk{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.blk h2{font-size:14px;margin:0 0 8px;color:var(--soft);font-weight:600}
+.edit .blk{outline:2px dashed var(--acc);outline-offset:-4px}
+.tools{display:none;flex-wrap:wrap;gap:4px;position:absolute;left:6px;right:6px;bottom:6px;background:var(--bar);border-radius:12px;padding:4px;z-index:2}
+.edit .tools{display:flex}
+.tools button{padding:5px 9px;font-size:13px;border-radius:8px}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.big{font-size:44px;font-weight:300;font-variant-numeric:tabular-nums}
+.date{color:var(--soft);margin-top:4px}
+svg.ck{width:100%;height:100%;max-height:100%}
+.row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
+.ring{animation:fl .6s infinite alternate}
+@keyframes fl{to{background:var(--warn);color:#000}}
+.board{background:#27403a;border:8px solid #8a6a43;border-radius:10px;color:#f4f4ee;width:100%;flex:1;min-height:0;padding:10px;font:26px/1.3 "Chalkboard SE","Bradley Hand","Marker Felt",cursive;text-align:left;resize:none;outline:none;overflow:auto}
+.bar2{display:flex;gap:6px;margin-top:6px;align-self:stretch;justify-content:space-between}
+dialog,.pop{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:420px}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
+#toast{position:fixed;left:50%;bottom:50px;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:10px 16px;border-radius:12px;display:none;z-index:9;max-width:90%}
+@media(max-width:700px){#grid{grid-template-columns:repeat(2,1fr)}.blk{grid-column:span 2!important}h1{display:none}}
+</style>
+</head>
+<body>
+<header>
+<h1>Hemvist</h1>
+<div class="tabs" id="tabs"></div>
+<button id="wake" title="Håll skärmen tänd">☀ Håll vaken</button>
+<button id="theme">◐</button>
+<button id="edit">Redigera</button>
+<button id="about">Om</button>
+</header>
+<main><div id="grid"></div></main>
+<footer>Hemvist <span id="ver"></span> · © 2026 Per Andersson</footer>
+<div id="toast"></div>
+<dialog id="dlg">
+<h3 style="margin-top:0">Hemvist</h3>
+<p>Hemmets skärm för kylskåpet: klocka, kökstimer och snabbmeddelanden. Flera block kommer.</p>
+<p>Version <b id="ver2"></b><br><span id="updMsg" style="color:var(--soft)"></span></p>
+<div class="row" style="justify-content:flex-start">
+<button id="updBtn">Sök uppdatering</button><button id="updGo" hidden>Uppdatera nu</button><button id="close">Stäng</button>
+</div>
+<p style="font-size:12px;color:var(--soft)">© 2026 Per Andersson</p>
+</dialog>
+<script>
+const APP_VERSION = "0.1.00";
+const $ = id => document.getElementById(id);
+const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:2},tavla:{n:'Snabbmeddelande',w:3,h:2}};
+const KEY = 'hemvist_state';
+let S;
+function def(){return {theme:'dark',cur:0,clock:'analog',views:[
+ {name:'Hemmet',blocks:[{t:'klocka',w:2,h:2},{t:'tavla',w:3,h:2}]},
+ {name:'Köket',blocks:[{t:'timer',w:2,h:2}]},{name:'Annat',blocks:[]}]};}
+function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):def()}catch(e){S=def()}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
+let editing=false;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function used(){return S.views.reduce((a,v)=>a.concat(v.blocks.map(b=>b.t)),[])}
+
+/* ---- Kökstimer ---- */
+const T={rem:0,end:0,run:false,ring:false};
+let actx=null;
+function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+ [0,.25,.5,.9,1.15,1.4].forEach(d=>{const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=d<.8?880:1175;o.connect(g);g.connect(actx.destination);
+ const t=actx.currentTime+d;g.gain.setValueAtTime(.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22)})}catch(e){}
+ if(navigator.vibrate)navigator.vibrate([200,100,200])}
+function fmt(s){s=Math.ceil(s/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function tmr(){if(T.run){T.rem=Math.max(0,T.end-Date.now());if(T.rem===0){T.run=false;T.ring=true;beep()}}
+ const d=$('tdisp');if(d){d.textContent=fmt(T.rem);d.parentNode.parentNode.classList.toggle('ring',T.ring)}
+ const b=$('tgo');if(b)b.textContent=T.run?'Paus':'Start'}
+function timerUI(el){
+ el.innerHTML='<div class="big" id="tdisp">00:00</div><div class="row" id="tpre"></div><div class="row"><button id="tgo">Start</button><button id="trs">Nollställ</button></div>';
+ [[30,'½ min'],[60,'1 min'],[180,'3 min'],[300,'5 min'],[600,'10 min']].forEach(p=>{
+  const b=document.createElement('button');b.textContent='+'+p[1];
+  b.onclick=()=>{T.ring=false;T.rem+=p[0]*1000;if(T.run)T.end+=p[0]*1000;try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}tmr()};
+  $('tpre').appendChild(b)});
+ $('tgo').onclick=()=>{try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}
+  if(T.ring){T.ring=false;T.rem=0}else if(T.run){T.run=false}else if(T.rem>0){T.end=Date.now()+T.rem;T.run=true}tmr()};
+ $('trs').onclick=()=>{T.run=false;T.ring=false;T.rem=0;tmr()};tmr()}
+
+/* ---- Klocka ---- */
+function clockUI(el){
+ let h='';
+ if(S.clock==='analog'){
+  let t='';for(let i=0;i<60;i++){const a=i*6,l=i%5?2:6;t+=`<line x1="50" y1="4" x2="50" y2="${4+l}" stroke="var(--soft)" stroke-width="${i%5?.4:1}" transform="rotate(${a} 50 50)"/>`}
+  h=`<svg class="ck" viewBox="0 0 100 100" width="160" height="160">${t}<line id="hh" x1="50" y1="50" x2="50" y2="26" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><line id="mh" x1="50" y1="50" x2="50" y2="14" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><line id="sh" x1="50" y1="56" x2="50" y2="10" stroke="var(--warn)" stroke-width=".9"/><circle cx="50" cy="50" r="2" fill="var(--warn)"/></svg>`;
+ }else h='<div class="big" id="dig" style="font-size:64px"></div>';
+ el.innerHTML=h+'<div class="date" id="dat"></div><div class="row tl"><button id="cm">'+(S.clock==='analog'?'Digital':'Analog')+'</button></div>';
+ $('cm').onclick=()=>{S.clock=S.clock==='analog'?'digital':'analog';save();clockUI(el);clk()};
+ clk()}
+function clk(){const n=new Date();
+ const s=n.getSeconds(),m=n.getMinutes()+s/60,h=(n.getHours()%12)+m/60;
+ const set=(i,a)=>{const e=$(i);if(e)e.setAttribute('transform','rotate('+a+' 50 50)')};
+ set('hh',h*30);set('mh',m*6);set('sh',s*6);
+ const d=$('dig');if(d)d.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+ const dt=$('dat');if(dt){let x=n.toLocaleDateString('sv-SE',{weekday:'long',day:'numeric',month:'long'});dt.textContent=x.charAt(0).toUpperCase()+x.slice(1)}
+ const cb=document.querySelector('.tl');if(cb)cb.style.display=editing?'flex':'none'}
+
+/* ---- Snabbmeddelande ---- */
+function boardUI(el){
+ let v='';try{v=localStorage.getItem('hemvist_tavla')||''}catch(e){}
+ el.style.alignItems='stretch';el.style.justifyContent='flex-start';
+ el.innerHTML='<textarea class="board" id="bt" placeholder="Skriv här…"></textarea><div class="bar2"><button id="bs">Sudda</button><span style="color:var(--soft);font-size:12px;align-self:center">Sparas på den här enheten</span></div>';
+ $('bt').value=v;
+ $('bt').oninput=()=>{try{localStorage.setItem('hemvist_tavla',$('bt').value)}catch(e){}};
+ $('bs').onclick=()=>{if(confirm('Sudda tavlan?')){$('bt').value='';try{localStorage.removeItem('hemvist_tavla')}catch(e){}}}}
+const UI={klocka:clockUI,timer:timerUI,tavla:boardUI};
+
+/* ---- Rutnät och redigering ---- */
+function render(){
+ document.body.classList.toggle('edit',editing);
+ document.documentElement.setAttribute('data-theme',S.theme);
+ const tabs=$('tabs');tabs.innerHTML='';
+ S.views.forEach((v,i)=>{const b=document.createElement('button');b.textContent=v.name;if(i===S.cur)b.className='on';b.onclick=()=>{S.cur=i;save();render()};tabs.appendChild(b)});
+ if(editing){const a=document.createElement('button');a.textContent='＋ Block';a.onclick=addMenu;tabs.appendChild(a)}
+ $('edit').textContent=editing?'Klar':'Redigera';$('edit').className=editing?'on':'';
+ const g=$('grid');g.innerHTML='';const v=S.views[S.cur];
+ v.blocks.forEach((b,i)=>{
+  const d=document.createElement('div');d.className='blk';d.style.gridColumn='span '+b.w;d.style.gridRow='span '+b.h;
+  d.innerHTML='<h2>'+TYPES[b.t].n+'</h2><div class="body"></div><div class="tools"></div>';
+  UI[b.t](d.querySelector('.body'));
+  const tl=d.querySelector('.tools');
+  const add=(txt,f,dis)=>{const x=document.createElement('button');x.textContent=txt;x.disabled=!!dis;x.onclick=f;tl.appendChild(x)};
+  add('◀',()=>mv(i,-1),i===0);add('▶',()=>mv(i,1),i===v.blocks.length-1);
+  add('B−',()=>sz(b,'w',-1));add('B+',()=>sz(b,'w',1));add('H−',()=>sz(b,'h',-1));add('H+',()=>sz(b,'h',1));
+  add('→ '+S.views[(S.cur+1)%S.views.length].name,()=>{S.views[(S.cur+1)%S.views.length].blocks.push(v.blocks.splice(i,1)[0]);save();render()});
+  add('✕',()=>{v.blocks.splice(i,1);save();render()});
+  g.appendChild(d)});
+ tmr();}
+function mv(i,d){const a=S.views[S.cur].blocks;const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];save();render()}
+function sz(b,k,d){b[k]=clamp(b[k]+d,1,k==='w'?6:4);save();render()}
+function addMenu(){
+ const free=Object.keys(TYPES).filter(k=>used().indexOf(k)<0);
+ if(!free.length){toast('Alla block finns redan.');return}
+ const k=free[0]&&free.length===1?free[0]:prompt('Lägg till block:\n'+free.map((x,i)=>(i+1)+' = '+TYPES[x].n).join('\n'));
+ const t=free.indexOf(k)>=0?k:free[(parseInt(k,10)||0)-1];
+ if(!t)return;S.views[S.cur].blocks.push({t:t,w:TYPES[t].w,h:TYPES[t].h});save();render()}
+
+/* ---- Håll vaken ---- */
+let wl=null,wantWake=false;
+async function wake(){try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}catch(e){toast('Kunde inte hålla skärmen tänd.')}}
+$('wake').onclick=async()=>{
+ if(!('wakeLock' in navigator)){toast('Den här iPadOS-versionen saknar stöd. Ställ in Skärmlås på Aldrig i Inställningar.');return}
+ wantWake=!wantWake;$('wake').className=wantWake?'on':'';
+ if(wantWake)await wake();else if(wl){wl.release();wl=null}};
+document.addEventListener('visibilitychange',()=>{if(wantWake&&!wl&&document.visibilityState==='visible')wake()});
+
+/* ---- Om och uppdatering ---- */
+const ver=v=>String(v).split('.').map(Number);
+function newer(a,b){a=ver(a);b=ver(b);for(let i=0;i<Math.max(a.length,b.length);i++){const x=a[i]||0,y=b[i]||0;if(x!==y)return x>y}return false}
+$('about').onclick=()=>{$('updMsg').textContent='';$('updGo').hidden=true;$('dlg').showModal?$('dlg').showModal():$('dlg').setAttribute('open','')};
+$('close').onclick=()=>$('dlg').close?$('dlg').close():$('dlg').removeAttribute('open');
+$('updBtn').onclick=async()=>{
+ if(location.protocol==='file:'){$('updMsg').textContent='Går inte från en lokal fil. Öppna appen från dess webbadress.';return}
+ $('updMsg').textContent='Söker…';
+ try{const r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const m=(await r.text()).match(/const APP_VERSION\s*=\s*"([^"]+)"/);
+  if(!m)throw new Error('ingen versionsrad');
+  if(newer(m[1],APP_VERSION)){$('updMsg').textContent='Ny version finns: '+m[1];$('updGo').hidden=false}
+  else $('updMsg').textContent='Du har den senaste versionen.'}
+ catch(e){$('updMsg').textContent='Kunde inte söka uppdatering. '+e.message}};
+$('updGo').onclick=async()=>{try{const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)));
+ const rg=await navigator.serviceWorker.getRegistrations();await Promise.all(rg.map(x=>x.unregister()))}catch(e){}location.reload()};
+
+$('theme').onclick=()=>{S.theme=S.theme==='dark'?'light':'dark';save();render()};
+$('edit').onclick=()=>{editing=!editing;render()};
+$('ver').textContent=APP_VERSION;$('ver2').textContent=APP_VERSION;
+load();render();
+setInterval(()=>{clk();tmr()},1000);
+if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
