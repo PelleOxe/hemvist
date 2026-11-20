@@ -81,7 +81,7 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">Texten lagras okrypterad i molnet. Skriv inget känsligt på tavlan.</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.03";
+const APP_VERSION = "0.1.04";
 const $ = id => document.getElementById(id);
 const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:2},tavla:{n:'Snabbmeddelande',w:3,h:2}};
 const KEY = 'hemvist_state';
@@ -136,12 +136,14 @@ function clk(){const n=new Date();
  const cb=document.querySelector('.tl');if(cb)cb.style.display=editing?'flex':'none'}
 
 /* ---- Snabbmeddelande ---- */
-let pt=null,pend=null,cstat='';
+let pt=null,pend=null,cstat='',lastEdit=0;
 function lsSet(v){try{localStorage.setItem('hemvist_tavla',v)}catch(e){}}
 function WS(){try{return JSON.parse(localStorage.getItem('hemvist_ws')||'null')}catch(e){return null}}
 function cst(){const e=$('cst');if(e)e.textContent=WS()?(cstat||'Ansluter…'):'Sparas bara på den här enheten'}
 function applyRemote(t){const el=$('bt');if(el){if(el.value!==t)el.value=t}lsSet(t)}
-window.hvRemote=t=>{const el=$('bt');if(el&&document.activeElement===el){pend=t;return}applyRemote(t)};
+window.hvRemote=t=>{const el=$('bt');if(el&&document.activeElement===el&&Date.now()-lastEdit<4000){pend=t;return}pend=null;applyRemote(t)};
+window.hvOwn=()=>{pend=null};
+setInterval(()=>{if(pend!==null&&Date.now()-lastEdit>=4000){const p=pend;pend=null;applyRemote(p)}},1000);
 window.hvLocal=()=>{try{return localStorage.getItem('hemvist_tavla')||''}catch(e){return ''}};
 window.hvStatus=s=>{cstat=s;cst()};
 function boardUI(el){
@@ -149,7 +151,7 @@ function boardUI(el){
  el.style.alignItems='stretch';el.style.justifyContent='flex-start';
  el.innerHTML='<textarea class="board" id="bt" placeholder="Skriv här…"></textarea><div class="bar2"><button id="bs">Sudda</button><span id="cst" style="color:var(--soft);font-size:12px;align-self:center"></span></div>';
  const t=$('bt');t.value=v;cst();
- t.oninput=()=>{lsSet(t.value);clearTimeout(pt);pt=setTimeout(()=>{if(window.hvPush)window.hvPush(t.value)},600)};
+ t.oninput=()=>{lastEdit=Date.now();pend=null;lsSet(t.value);clearTimeout(pt);pt=setTimeout(()=>{if(window.hvPush)window.hvPush(t.value)},600)};
  t.onblur=()=>{if(pend!==null){applyRemote(pend);pend=null}};
  $('bs').onclick=()=>{if(confirm('Sudda tavlan?')){t.value='';lsSet('');if(window.hvPush)window.hvPush('')}}}
 const UI={klocka:clockUI,timer:timerUI,tavla:boardUI};
@@ -234,7 +236,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventLis
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot, serverTimestamp, getDocFromServer } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 const app = initializeApp({apiKey:"AIzaSyAf5A3O6arKygExU1ssU40oxYvx9gN6IKs",authDomain:"logg2026.firebaseapp.com",projectId:"logg2026",storageBucket:"logg2026.firebasestorage.app",messagingSenderId:"764242124905",appId:"1:764242124905:web:b67f600177ed491a8902f8"});
 const auth = getAuth(app);
 const db = initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()}),experimentalAutoDetectLongPolling:true});
@@ -246,13 +248,20 @@ function stop(){if(unsub){unsub();unsub=null}}
 function start(){stop();if(!user||!ws)return;
  unsub=onSnapshot(ref(),{includeMetadataChanges:true},snap=>{
   const d=snap.data();
-  if(snap.exists()&&!snap.metadata.hasPendingWrites&&d.by!==dev)window.hvRemote(d.text||'');
+  if(snap.exists()&&!snap.metadata.hasPendingWrites){if(d.by!==dev)window.hvRemote(d.text||'');else window.hvOwn()}
   if(!snap.exists()&&!snap.metadata.fromCache){const t=window.hvLocal();if(t)window.hvPush(t)}
-  window.hvStatus(snap.metadata.fromCache?'Offline, lokal kopia':'Synkad')},
-  err=>window.hvStatus('Fel: '+err.code))}
+  window.hvStatus((snap.metadata.fromCache?'Offline, lokal kopia ':'Synkad ')+tm())},
+  err=>window.hvStatus('Fel: '+err.code));setTimeout(poll,500)}
 window.hvPush=text=>{if(!user||!ws)return;setDoc(ref(),{text:text,by:dev,updatedAt:serverTimestamp()}).catch(e=>window.hvStatus('Fel: '+e.code))};
 window.hvConnect=async(kod,pin)=>{ws=await sha(kod.trim().toLowerCase()+"::"+pin.trim());
  localStorage.setItem('hemvist_ws',JSON.stringify({wsId:ws,kod:kod.trim(),pin:pin.trim()}));start()};
+const tm=()=>new Date().toLocaleTimeString('sv-SE');
+async function poll(){if(!user||!ws||document.visibilityState!=='visible')return;
+ try{const s=await getDocFromServer(ref());const d=s.data();if(s.exists()&&d.by!==dev)window.hvRemote(d.text||'');window.hvStatus('Synkad '+tm())}
+ catch(e){window.hvStatus('Ingen kontakt '+(e.code||''))}}
+setInterval(poll,15000);
+document.addEventListener('visibilitychange',()=>setTimeout(poll,300));
+['focus','online','pageshow'].forEach(ev=>window.addEventListener(ev,()=>setTimeout(poll,300)));
 window.hvDisconnect=()=>{stop();ws=null};
 onAuthStateChanged(auth,u=>{if(u){user=u;try{const s=JSON.parse(localStorage.getItem('hemvist_ws')||'null');if(s&&s.wsId){ws=s.wsId;start()}}catch(e){}}});
 signInAnonymously(auth).catch(e=>window.hvStatus('Fel: '+e.code));
