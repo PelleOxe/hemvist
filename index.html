@@ -49,7 +49,9 @@ svg.ck{flex:1;min-height:0;width:100%}
 .wbf{font-size:13px;color:var(--soft)}.wsrc,.wupd{font-size:12px;color:var(--soft)}.wold{color:#ff6b6b}
 .wxp{left:0;right:auto!important;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wxt{position:absolute;top:0;right:0;padding:3px 10px;font-size:12px;z-index:1}
-.wxe{display:flex;flex-direction:column;width:100%;height:100%;gap:4px;padding-top:26px}
+.wxx{display:flex;gap:12px;width:100%;height:100%;padding-top:26px;min-height:0}
+.wxl{flex:0 0 36%;min-width:200px;max-width:300px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.wxe{display:flex;flex-direction:column;flex:1;min-width:0;height:100%;gap:4px}
 .wxs{width:100%;flex:1;min-height:0}.wxs text{font-size:11px;fill:var(--soft)}.wxs .gr{stroke:var(--line);stroke-width:1}
 .eko{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}.ekt{font-weight:600;font-size:15px;text-align:center}
 .ekb{font-size:32px;width:72px;height:72px;border-radius:50%;padding:0}.eko input[type=range]{padding:0;border:none;background:transparent;margin:0}
@@ -59,7 +61,7 @@ dialog,.pop{background:var(--card);color:var(--ink);border:1px solid var(--line)
 dialog::backdrop{background:rgba(0,0,0,.5)}
 footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 #toast{position:fixed;left:50%;bottom:50px;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:10px 16px;border-radius:12px;display:none;z-index:9;max-width:90%}
-@media(max-width:700px){#grid{grid-template-columns:repeat(2,1fr);grid-auto-rows:54px}.blk{grid-column:span 2!important}h1{display:none}}
+@media(max-width:700px){#grid{grid-template-columns:repeat(2,1fr);grid-auto-rows:54px}.wxx{flex-direction:column;overflow-y:auto}.wxl{flex:none!important;max-width:none!important}.wxe{flex:none!important;min-height:300px}.blk{grid-column:span 2!important}h1{display:none}}
 </style>
 </head>
 <body>
@@ -101,7 +103,7 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">Texten lagras okrypterad i molnet. Skriv inget känsligt på tavlan.</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.10";
+const APP_VERSION = "0.1.11";
 const $ = id => document.getElementById(id);
 const TYPES = {klocka:{n:'Klocka',w:4,h:4},timer:{n:'Kökstimer',w:4,h:6},tavla:{n:'Snabbmeddelande',w:6,h:4},vader:{n:'Väder',w:4,h:6},eko:{n:'Dagens Eko',w:4,h:4}};
 const KEY = 'hemvist_state';
@@ -214,16 +216,16 @@ function render(){
  S.views.forEach((v,i)=>{const b=document.createElement('button');b.textContent=v.name;if(i===S.cur)b.className='on';b.onclick=()=>{S.cur=i;save();render()};tabs.appendChild(b)});
  if(editing){const a=document.createElement('button');a.textContent='＋ Block';a.onclick=addMenu;tabs.appendChild(a)}
  $('edit').textContent=editing?'Klar':'Redigera';$('edit').className=editing?'on':'';
- const g=$('grid');g.innerHTML='';const v=S.views[S.cur];
+ const g=$('grid');g.innerHTML='';const v=S.views[S.cur];g.style.gridAutoFlow=v.blocks.some(x=>x.nl)?'row':'row dense';
  v.blocks.forEach((b,i)=>{
-  const d=document.createElement('div');d.className='blk';d.style.gridColumn='span '+b.w;d.style.gridRow='span '+b.h;
+  const d=document.createElement('div');d.className='blk';d.style.gridColumn='span '+b.w;d.style.gridRow='span '+b.h;if(b.nl)d.style.gridColumnStart='1';
   d.innerHTML='<h2>'+TYPES[b.t].n+'</h2><div class="body"></div><div class="tools"></div>';
   g.appendChild(d);
   UI[b.t](d.querySelector('.body'),b);
   const tl=d.querySelector('.tools');
   const add=(txt,f,dis)=>{const x=document.createElement('button');x.textContent=txt;x.disabled=!!dis;x.onclick=f;tl.appendChild(x)};
   add('◀',()=>mv(i,-1),i===0);add('▶',()=>mv(i,1),i===v.blocks.length-1);
-  add('B−',()=>sz(b,'w',-1));add('B+',()=>sz(b,'w',1));add('H−',()=>sz(b,'h',-1));add('H+',()=>sz(b,'h',1));
+  add('B−',()=>sz(b,'w',-1));add('B+',()=>sz(b,'w',1));add('H−',()=>sz(b,'h',-1));add('H+',()=>sz(b,'h',1));add(b.nl?'✓ Ny rad':'↵ Ny rad',()=>{b.nl=!b.nl;save();render()});
   add('→ '+S.views[(S.cur+1)%S.views.length].name,()=>{S.views[(S.cur+1)%S.views.length].blocks.push(v.blocks.splice(i,1)[0]);save();render()});
   add('✕',()=>{v.blocks.splice(i,1);save();render()})});
  tmr();}
@@ -287,7 +289,7 @@ function wxCompact(c){
   '<div class="wsrc">'+(o?'📡 SMHI '+o.station+' ('+Math.round(o.dist)+' km)':'Open-Meteo (modell)')+'</div>'+
   '<div class="wupd'+(age>2700000?' wold':'')+'">Uppdaterad '+hm+(WX.err?' · '+WX.err:'')+'</div></div>'}
 function wxExt(c){
- const H=c.H,a=Math.max(0,c.idx-12),b=Math.min(H.time.length-1,c.idx+36),n=b-a+1,W=600,HH=170,L=36,R=40,T=30,B=20,PW=W-L-R,PH=HH-T-B;
+ const H=c.H,a=Math.max(0,c.idx-12),b=Math.min(H.time.length-1,c.idx+36),n=b-a+1,W=480,HH=170,L=36,R=40,T=30,B=20,PW=W-L-R,PH=HH-T-B;
  const X=i=>L+PW*i/(n-1),now=c.idx-a,S=k=>H[k].slice(a,b+1),hr=i=>+H.time[a+i].slice(11,13);
  let xl='';for(let i=0;i<n;i++)if(hr(i)%6===0)xl+='<text x="'+X(i)+'" y="'+(HH-5)+'" text-anchor="middle">'+String(hr(i)).padStart(2,'0')+'</text><line x1="'+X(i)+'" x2="'+X(i)+'" y1="'+T+'" y2="'+(T+PH)+'" class="gr"/>';
  const nl=lab=>'<line x1="'+X(now)+'" x2="'+X(now)+'" y1="'+T+'" y2="'+(T+PH)+'" stroke="var(--ink)" stroke-dasharray="2 3" opacity=".8"/><text x="'+X(now)+'" y="11" text-anchor="middle" style="fill:var(--ink)">'+lab+'</text>';
@@ -295,7 +297,7 @@ function wxExt(c){
  const pts=(arr,f)=>arr.map((v,i)=>X(i).toFixed(1)+','+f(v).toFixed(1)).join(' ');
  let gl='';for(let k=0;k<=4;k++){const v=mx*k/4;gl+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" class="gr"/><text x="'+(L-4)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+Math.round(v)+'</text>'}
  let ar='';for(let i=0;i<n;i+=3)ar+='<g transform="translate('+X(i)+',21) rotate('+(H.wind_direction_10m[a+i]+180)+')"><path d="M0 -6 L0 6 M0 -6 L-3 -2 M0 -6 L3 -2" stroke="#4fd1c5" fill="none" stroke-width="1.6" stroke-linecap="round"/></g>';
- const w1='<svg viewBox="0 0 600 170" class="wxs">'+gl+xl+'<polygon points="'+X(0)+','+Y(0)+' '+pts(m,Y)+' '+X(n-1)+','+Y(0)+'" fill="#4fd1c5" opacity=".25"/><polyline points="'+pts(g,Y)+'" fill="none" stroke="#ff9b4c" stroke-width="1.6" stroke-dasharray="4 3"/><polyline points="'+pts(m,Y)+'" fill="none" stroke="#4fd1c5" stroke-width="2"/>'+ar+nl('Nu · '+nf(m[now])+' · '+nf(g[now])+' m/s')+'<text x="4" y="'+(T-4)+'" style="fill:#4fd1c5">m/s</text></svg>';
+ const w1='<svg viewBox="0 0 480 170" class="wxs">'+gl+xl+'<polygon points="'+X(0)+','+Y(0)+' '+pts(m,Y)+' '+X(n-1)+','+Y(0)+'" fill="#4fd1c5" opacity=".25"/><polyline points="'+pts(g,Y)+'" fill="none" stroke="#ff9b4c" stroke-width="1.6" stroke-dasharray="4 3"/><polyline points="'+pts(m,Y)+'" fill="none" stroke="#4fd1c5" stroke-width="2"/>'+ar+nl('Nu · '+nf(m[now])+' · '+nf(g[now])+' m/s')+'<text x="4" y="'+(T-4)+'" style="fill:#4fd1c5">m/s</text></svg>';
  const t=S('temperature_2m'),cd=S('weathercode'),pr=S('precipitation');
  let lo=Math.floor(Math.min.apply(null,t)-1),hi=Math.ceil(Math.max.apply(null,t)+1);if(hi-lo<6)hi=lo+6;
  const Y2=v=>T+PH*(1-(v-lo)/(hi-lo)),st=(hi-lo)>14?5:2;let g2='';
@@ -304,17 +306,17 @@ function wxExt(c){
  let ic='';for(let i=0;i<n;i+=3)ic+='<text x="'+X(i)+'" y="21" text-anchor="middle" style="font-size:14px;fill:initial">'+wic(cd[i],wDay(H.time[a+i]))+'</text>';
  const pm=Math.max(.5,Math.max.apply(null,pr)),bw=PW/n*.7;let pb='';
  pr.forEach((p,i)=>{if(p>0){const h2=26*p/pm;pb+='<rect x="'+(X(i)-bw/2)+'" y="'+(T+PH-h2)+'" width="'+bw+'" height="'+h2+'" fill="var(--acc)" opacity=".55"/>'}});
- const w2='<svg viewBox="0 0 600 170" class="wxs">'+g2+xl+pb+'<polygon points="'+X(0)+','+(T+PH)+' '+pts(t,Y2)+' '+X(n-1)+','+(T+PH)+'" fill="#7aa7ff" opacity=".28"/><polyline points="'+pts(t,Y2)+'" fill="none" stroke="#7aa7ff" stroke-width="2"/>'+ic+nl('Nu · '+nf(t[now])+' °C')+'<text x="'+(W-R+4)+'" y="'+(T+PH-2)+'">'+nf(pm)+' mm</text></svg>';
+ const w2='<svg viewBox="0 0 480 170" class="wxs">'+g2+xl+pb+'<polygon points="'+X(0)+','+(T+PH)+' '+pts(t,Y2)+' '+X(n-1)+','+(T+PH)+'" fill="#7aa7ff" opacity=".28"/><polyline points="'+pts(t,Y2)+'" fill="none" stroke="#7aa7ff" stroke-width="2"/>'+ic+nl('Nu · '+nf(t[now])+' °C')+'<text x="'+(W-R+4)+'" y="'+(T+PH-2)+'">'+nf(pm)+' mm</text></svg>';
  return w1+w2}
 let wxEl=null,wxB=null;
 function wxDraw(){if(!wxEl||!document.body.contains(wxEl))return;
  const c=wxCur(),ext=wxB&&wxB.mode==='ext';
  let h='<button class="wxt wxp" id="wxp">📍 '+WXP.name.replace(/</g,'&lt;')+'</button><button class="wxt" id="wxt">'+(ext?'Kompakt':'Utökad')+'</button>';
  if(!c)h+='<div class="date">'+(WX.err||'Hämtar väder…')+'</div>';
- else{try{h+=ext?'<div class="wxe">'+wxExt(c)+'</div>':wxCompact(c)}catch(e){h+='<div class="date">Väderdata kunde inte visas</div>'}}
+ else{try{h+=ext?'<div class="wxx"><div class="wxl">'+wxCompact(c)+'</div><div class="wxe">'+wxExt(c)+'</div></div>':wxCompact(c)}catch(e){h+='<div class="date">Väderdata kunde inte visas</div>'}}
  wxEl.innerHTML=h;
  $('wxp').onclick=wxPlaceDlg;
- $('wxt').onclick=()=>{if(ext){wxB.mode='cmp';wxB.w=wxB.w0||4;wxB.h=wxB.h0||6}else{wxB.w0=wxB.w;wxB.h0=wxB.h;wxB.mode='ext';wxB.w=Math.max(wxB.w,8);wxB.h=Math.max(wxB.h,6)}save();render()}}
+ $('wxt').onclick=()=>{if(ext){wxB.mode='cmp';wxB.w=wxB.w0||4;wxB.h=wxB.h0||6}else{wxB.w0=wxB.w;wxB.h0=wxB.h;wxB.mode='ext';wxB.w=12;wxB.h=Math.max(wxB.h,6)}save();render()}}
 function wxUI(el,b){wxEl=el;wxB=b;el.style.position='relative';el.style.alignItems='stretch';el.style.justifyContent='flex-start';wxDraw();if(Date.now()-WX.t>300000)wxLoad()}
 function wxPlaces(){try{return JSON.parse(localStorage.getItem('hemvist_wxplaces')||'[]')}catch(e){return []}}
 function wxSetPlace(p){WXP={lat:p.lat,lon:p.lon,name:p.name};
