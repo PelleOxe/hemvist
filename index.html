@@ -47,6 +47,7 @@ svg.ck{flex:1;min-height:0;width:100%}
 .wtemp{font-size:72px;font-weight:300;line-height:1;color:var(--acc)}.wtemp small{font-size:28px;vertical-align:top}
 .wdesc{font-style:italic;font-size:17px}.wsm{color:var(--soft);font-size:14px}.wwind{font-size:15px;margin-top:6px}.wwind .g{color:#ff9b4c}
 .wbf{font-size:13px;color:var(--soft)}.wsrc,.wupd{font-size:12px;color:var(--soft)}.wold{color:#ff6b6b}
+.wxp{left:0;right:auto!important;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wxt{position:absolute;top:0;right:0;padding:3px 10px;font-size:12px;z-index:1}
 .wxe{display:flex;flex-direction:column;width:100%;height:100%;gap:4px;padding-top:26px}
 .wxs{width:100%;flex:1;min-height:0}.wxs text{font-size:11px;fill:var(--soft)}.wxs .gr{stroke:var(--line);stroke-width:1}
@@ -83,6 +84,13 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 </div>
 <p style="font-size:12px;color:var(--soft)">© 2026 Per Andersson</p>
 </dialog>
+<dialog id="dlg3">
+<h3 style="margin-top:0">Välj ort för vädret</h3>
+<div style="display:flex;gap:6px"><input id="pq" placeholder="Sök ort…" style="margin:0" autocomplete="off"><button id="pgo" class="on">Sök</button></div>
+<div id="plist" style="display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto;margin:10px 0"></div>
+<div class="row" style="justify-content:flex-start"><button id="ppos">📍 Min position</button><button id="pclose">Stäng</button></div>
+<p style="font-size:12px;color:var(--soft)">Ortssök via OpenStreetMap Nominatim.</p>
+</dialog>
 <dialog id="dlg2">
 <h3 style="margin-top:0">Delning mellan enheter</h3>
 <p style="color:var(--soft);font-size:14px">Skriv samma kod och PIN på alla enheter som ska dela tavlan, till exempel iPad och telefon.</p>
@@ -93,7 +101,7 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">Texten lagras okrypterad i molnet. Skriv inget känsligt på tavlan.</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.08";
+const APP_VERSION = "0.1.09";
 const $ = id => document.getElementById(id);
 const TYPES = {klocka:{n:'Klocka',w:2,h:2},timer:{n:'Kökstimer',w:2,h:3},tavla:{n:'Snabbmeddelande',w:3,h:2},vader:{n:'Väder',w:2,h:3},eko:{n:'Dagens Eko',w:2,h:2}};
 const KEY = 'hemvist_state';
@@ -127,7 +135,7 @@ function tmr(){if(T.run){T.rem=Math.max(0,T.end-Date.now());if(T.rem===0){T.run=
  $('twedge').setAttribute('d',d);
  $('tdig').textContent=fmt(T.rem);
  const b=sv.closest('.blk');if(b)b.classList.toggle('ring',T.ring);
- const show=!T.run||T.ring||Date.now()<panelUntil;$('tpanel').style.display=show?'flex':'none';
+ const show=T.ring||Date.now()<panelUntil;$('tpanel').style.display=show?'flex':'none';
  $('tgo').textContent=T.ring?'Tysta':T.run?'Paus':'Start'}
 function timerUI(el){
  let k='';for(let i=0;i<60;i++){const L=i%5?2.2:5;k+='<line x1="50" y1="6" x2="50" y2="'+(6+L)+'" stroke="var(--ink)" opacity=".7" stroke-width="'+(i%5?.4:1)+'" transform="rotate('+(i*6)+' 50 50)"/>'}
@@ -137,21 +145,21 @@ function timerUI(el){
   '<div id="tpanel" class="row" style="flex-direction:row"><span class="row" id="tpre" style="margin:0"></span><span class="row" style="margin:0"><button id="tgo" class="on">Start</button><button id="trs">Nollställ</button></span></div>';
  [[30,'½ min'],[60,'1 min'],[180,'3 min'],[300,'5 min'],[600,'10 min']].forEach(p=>{
   const b=document.createElement('button');b.textContent='+'+p[1];
-  b.onclick=()=>{unlock();T.ring=false;T.rem=Math.min(3600000,T.rem+p[0]*1000);if(T.run)T.end=Date.now()+T.rem;panelUntil=Date.now()+8000;tmr()};
+  b.onclick=()=>{unlock();T.ring=false;T.rem=Math.min(3600000,T.rem+p[0]*1000);if(T.run)T.end=Date.now()+T.rem;panelUntil=Date.now()+10000;tmr()};
   $('tpre').appendChild(b)});
  $('tgo').onclick=()=>{unlock();
-  if(T.ring){T.ring=false;T.rem=0}else if(T.run){T.run=false}else if(T.rem>0){T.end=Date.now()+T.rem;T.run=true;panelUntil=0}tmr()};
+  if(T.ring){T.ring=false;T.rem=0;panelUntil=0}else if(T.run){T.run=false}else if(T.rem>0){T.end=Date.now()+T.rem;T.run=true;panelUntil=0}tmr()};
  $('trs').onclick=()=>{T.run=false;T.ring=false;T.rem=0;panelUntil=0;tmr()};
  const sv=$('tdial');let dn=false,mv=false,sx=0,sy=0,pm=0;
  const ang=e=>{const r=sv.getBoundingClientRect();let a=Math.atan2(e.clientX-(r.left+r.width/2),-(e.clientY-(r.top+r.height/2)))*180/Math.PI;return a<0?a+360:a};
- sv.addEventListener('pointerdown',e=>{unlock();dn=true;mv=false;sx=e.clientX;sy=e.clientY;pm=Math.round(T.rem/60000);panelUntil=Date.now()+8000;try{sv.setPointerCapture(e.pointerId)}catch(x){}tmr()});
+ sv.addEventListener('pointerdown',e=>{unlock();dn=true;mv=false;sx=e.clientX;sy=e.clientY;pm=Math.round(T.rem/60000);panelUntil=Date.now()+10000;try{sv.setPointerCapture(e.pointerId)}catch(x){}tmr()});
  sv.addEventListener('pointermove',e=>{if(!dn)return;
   if(!mv){if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)<6)return;mv=true}
   let m=Math.round(ang(e)/6);if(m>=60)m=0;
   if(pm>=45&&m<=15)m=60;else if(pm<=15&&m>=45)m=0;
   pm=m;T.ring=false;T.rem=m*60000;
   if(T.run){if(m===0)T.run=false;else T.end=Date.now()+T.rem}
-  panelUntil=Date.now()+8000;tmr()});
+  panelUntil=Date.now()+10000;tmr()});
  const up=()=>{dn=false};sv.addEventListener('pointerup',up);sv.addEventListener('pointercancel',up);
  tmr()}
 
@@ -228,21 +236,25 @@ function addMenu(){
  if(!t)return;S.views[S.cur].blocks.push({t:t,w:TYPES[t].w,h:TYPES[t].h});save();render()}
 
 /* ---- Väder (Open-Meteo + SMHI-observationer, efter KWA) ---- */
-const WXLAT=56.009,WXLON=12.697,WXKEY='hemvist_wx';
+const WXKEY='hemvist_wx';
+let WXP={lat:56.009,lon:12.697,name:'Helsingborg'};try{const p=JSON.parse(localStorage.getItem('hemvist_wxplace')||'null');if(p&&p.lat!=null)WXP=p}catch(e){}
 const WX={d:null,o:null,t:0,err:'',busy:false};
 try{const c=JSON.parse(localStorage.getItem(WXKEY)||'null');if(c&&c.d){WX.d=c.d;WX.o=c.o;WX.t=c.t}}catch(e){}
 const WDESC={0:'Klart',1:'Mestadels klart',2:'Delvis molnigt',3:'Mulet',45:'Dimma',48:'Rimfrostdimma',51:'Lätt duggregn',53:'Duggregn',55:'Kraftigt duggregn',61:'Lätt regn',63:'Regn',65:'Kraftigt regn',71:'Lätt snöfall',73:'Snöfall',75:'Kraftigt snöfall',77:'Snökorn',80:'Lätta skurar',81:'Skurar',82:'Kraftiga skurar',85:'Snöbyar',86:'Kraftiga snöbyar',95:'Åska',96:'Åska med hagel',99:'Kraftig åska med hagel'};
-function wic(c,day){const m={0:day?'☀️':'🌙',1:day?'🌤':'🌙',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'❄️',75:'❄️',77:'🌨',80:'🌦',81:'🌧',82:'⛈',85:'🌨',86:'🌨',95:'⛈',96:'⛈',99:'⛈'};return m[c]||'🌡'}
+function wDay(ts){const Dd=WX.d&&WX.d.daily;if(!Dd||!Dd.time)return true;const i=Dd.time.indexOf(ts.slice(0,10));if(i<0)return true;const t=ts.slice(0,16);return t>=Dd.sunrise[i]&&t<Dd.sunset[i]}
+function wic(c,day){const m={0:day?'☀️':'🌙',1:day?'🌤':'🌙',2:day?'⛅':'☁️🌙',3:'☁️',45:'🌫',48:'🌫',51:day?'🌦':'🌧',53:day?'🌦':'🌧',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'❄️',75:'❄️',77:'🌨',80:day?'🌦':'🌧',81:'🌧',82:'⛈',85:'🌨',86:'🌨',95:'⛈',96:'⛈',99:'⛈'};return m[c]||'🌡'}
 const BFN=['Stiltje','Flört','Svag vind','Lätt bris','Måttlig bris','Frisk bris','Hård bris','Styv bris','Kuling','Halv storm','Storm','Svår storm','Orkan'],BFT=[0,.3,1.6,3.4,5.5,8,10.8,13.9,17.2,20.8,24.5,28.5,32.7];
 function bfi(v){let b=0;for(let i=BFT.length-1;i>=0;i--)if(v>=BFT[i]){b=i;break}return b}
 const nf=(v,d)=>v==null||isNaN(v)?'—':v.toFixed(d==null?1:d).replace('.',',').replace('-','−');
 function hav(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2),z=x*x+Math.cos(a*r)*Math.cos(c*r)*y*y;return 12742*Math.asin(Math.sqrt(z))}
 async function wxObs(){
+ if(!(WXP.lat>=55&&WXP.lat<=69&&WXP.lon>=10&&WXP.lon<=25))return null;
  let st=null;try{st=JSON.parse(localStorage.getItem('hemvist_wxst')||'null')}catch(e){}
  const B='https://opendata-download-metobs.smhi.se/api/version/latest/parameter/';
  if(!st||Date.now()-st.t>2592e6){const r=await fetch(B+'4/station.json');const j=await r.json();let best=null,bd=1e9;
-  (j.station||[]).forEach(s=>{if(!s.active)return;const k=hav(WXLAT,WXLON,s.latitude,s.longitude);if(k<bd){bd=k;best=s}});
+  (j.station||[]).forEach(s=>{if(!s.active)return;const k=hav(WXP.lat,WXP.lon,s.latitude,s.longitude);if(k<bd){bd=k;best=s}});
   if(!best)throw new Error('ingen station');st={id:best.id,name:best.name,dist:bd,t:Date.now()};try{localStorage.setItem('hemvist_wxst',JSON.stringify(st))}catch(e){}}
+ if(st.dist>40)return null;
  const o={station:st.name,dist:st.dist};
  await Promise.all([[4,'wind'],[21,'gust'],[3,'dir'],[1,'temp']].map(async p=>{try{
   const r=await fetch(B+p[0]+'/station/'+st.id+'/period/latest-hour/data.json');if(!r.ok)return;const j=await r.json();
@@ -251,7 +263,7 @@ async function wxObs(){
  return (o.wind!=null||o.temp!=null)?o:null}
 async function wxLoad(){if(WX.busy)return;WX.busy=true;
  try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),12000);
-  const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+WXLAT+'&longitude='+WXLON+'&hourly=temperature_2m,apparent_temperature,weathercode,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m&current_weather=true&wind_speed_unit=ms&past_days=1&forecast_days=3&timezone=auto',{signal:c.signal});
+  const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+WXP.lat+'&longitude='+WXP.lon+'&hourly=temperature_2m,apparent_temperature,weathercode,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m&daily=sunrise,sunset&current_weather=true&wind_speed_unit=ms&past_days=1&forecast_days=3&timezone=auto',{signal:c.signal});
   clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);
   WX.d=await r.json();WX.err='';WX.t=Date.now();
   try{const o=await wxObs();if(o)WX.o=o}catch(e){}
@@ -266,7 +278,7 @@ function wxCompact(c){
  const wd=o&&o.wind!=null?o.wind:H.wind_speed_10m[i],gu=o&&o.gust!=null?o.gust:H.wind_gusts_10m[i],dr=o&&o.dir!=null?o.dir:H.wind_direction_10m[i];
  const bm=BFN[bfi(wd)],bg=bfi(gu)!==bfi(wd)?BFN[bfi(gu)]:'';
  const age=Date.now()-WX.t,hm=new Date(WX.t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
- return '<div class="wxc"><div class="wic">'+wic(H.weathercode[i],c.cw.is_day!==0)+'</div><div class="wlab">NU</div>'+
+ return '<div class="wxc"><div class="wic">'+wic(H.weathercode[i],wDay(c.cw.time))+'</div><div class="wlab">NU</div>'+
   '<div class="wtemp">'+nf(Math.round(T),0)+'<small>°</small></div><div class="wdesc">'+(WDESC[H.weathercode[i]]||'—')+'</div>'+
   '<div class="wsm">Känns som '+nf(H.apparent_temperature[i])+' °C</div>'+
   '<div class="wwind">💨 <b>'+nf(wd)+' m/s</b> · ▲ <b class="g">'+nf(gu)+' m/s</b> '+arrow(dr)+'</div>'+
@@ -288,7 +300,7 @@ function wxExt(c){
  const Y2=v=>T+PH*(1-(v-lo)/(hi-lo)),st=(hi-lo)>14?5:2;let g2='';
  for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st)g2+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y2(v)+'" y2="'+Y2(v)+'" class="gr"/><text x="'+(L-4)+'" y="'+(Y2(v)+4)+'" text-anchor="end">'+v+'°</text>';
  if(lo<0&&hi>0)g2+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y2(0)+'" y2="'+Y2(0)+'" stroke="#7aa7ff" stroke-dasharray="3 3" opacity=".7"/>';
- let ic='';for(let i=0;i<n;i+=3)ic+='<text x="'+X(i)+'" y="21" text-anchor="middle" style="font-size:14px;fill:initial">'+wic(cd[i],hr(i)>=6&&hr(i)<=20)+'</text>';
+ let ic='';for(let i=0;i<n;i+=3)ic+='<text x="'+X(i)+'" y="21" text-anchor="middle" style="font-size:14px;fill:initial">'+wic(cd[i],wDay(H.time[a+i]))+'</text>';
  const pm=Math.max(.5,Math.max.apply(null,pr)),bw=PW/n*.7;let pb='';
  pr.forEach((p,i)=>{if(p>0){const h2=26*p/pm;pb+='<rect x="'+(X(i)-bw/2)+'" y="'+(T+PH-h2)+'" width="'+bw+'" height="'+h2+'" fill="var(--acc)" opacity=".55"/>'}});
  const w2='<svg viewBox="0 0 600 170" class="wxs">'+g2+xl+pb+'<polygon points="'+X(0)+','+(T+PH)+' '+pts(t,Y2)+' '+X(n-1)+','+(T+PH)+'" fill="#7aa7ff" opacity=".28"/><polyline points="'+pts(t,Y2)+'" fill="none" stroke="#7aa7ff" stroke-width="2"/>'+ic+nl('Nu · '+nf(t[now])+' °C')+'<text x="'+(W-R+4)+'" y="'+(T+PH-2)+'">'+nf(pm)+' mm</text></svg>';
@@ -296,12 +308,33 @@ function wxExt(c){
 let wxEl=null,wxB=null;
 function wxDraw(){if(!wxEl||!document.body.contains(wxEl))return;
  const c=wxCur(),ext=wxB&&wxB.mode==='ext';
- let h='<button class="wxt" id="wxt">'+(ext?'Kompakt':'Utökad')+'</button>';
+ let h='<button class="wxt wxp" id="wxp">📍 '+WXP.name.replace(/</g,'&lt;')+'</button><button class="wxt" id="wxt">'+(ext?'Kompakt':'Utökad')+'</button>';
  if(!c)h+='<div class="date">'+(WX.err||'Hämtar väder…')+'</div>';
  else{try{h+=ext?'<div class="wxe">'+wxExt(c)+'</div>':wxCompact(c)}catch(e){h+='<div class="date">Väderdata kunde inte visas</div>'}}
  wxEl.innerHTML=h;
+ $('wxp').onclick=wxPlaceDlg;
  $('wxt').onclick=()=>{if(ext){wxB.mode='cmp';wxB.w=wxB.w0||2;wxB.h=wxB.h0||3}else{wxB.w0=wxB.w;wxB.h0=wxB.h;wxB.mode='ext';wxB.w=Math.max(wxB.w,4);wxB.h=Math.max(wxB.h,3)}save();render()}}
 function wxUI(el,b){wxEl=el;wxB=b;el.style.position='relative';el.style.alignItems='stretch';el.style.justifyContent='flex-start';wxDraw();if(Date.now()-WX.t>300000)wxLoad()}
+function wxPlaces(){try{return JSON.parse(localStorage.getItem('hemvist_wxplaces')||'[]')}catch(e){return []}}
+function wxSetPlace(p){WXP={lat:p.lat,lon:p.lon,name:p.name};
+ try{localStorage.setItem('hemvist_wxplace',JSON.stringify(WXP));const r=wxPlaces().filter(x=>x.name!==p.name);r.unshift(WXP);localStorage.setItem('hemvist_wxplaces',JSON.stringify(r.slice(0,6)));localStorage.removeItem(WXKEY);localStorage.removeItem('hemvist_wxst')}catch(e){}
+ WX.d=null;WX.o=null;WX.t=0;WX.err='';cd($('dlg3'));wxDraw();wxLoad()}
+function plist(items,msg){const el=$('plist');el.innerHTML='';
+ if(!items.length){el.innerHTML='<div class="date" style="margin:0">'+(msg||'')+'</div>';return}
+ items.forEach(p=>{const b=document.createElement('button');b.style.textAlign='left';b.style.borderRadius='10px';b.textContent=(p.label||p.name);b.onclick=()=>wxSetPlace(p);el.appendChild(b)})}
+function wxPlaceDlg(){$('pq').value='';plist(wxPlaces(),'Inga senaste orter ännu.');od($('dlg3'))}
+$('pclose').onclick=()=>cd($('dlg3'));
+$('pq').onkeydown=e=>{if(e.key==='Enter')$('pgo').click()};
+$('pgo').onclick=async()=>{const q=$('pq').value.trim();if(!q)return;plist([],'Söker…');
+ try{const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=6&addressdetails=1&accept-language=sv');if(!r.ok)throw new Error('HTTP '+r.status);
+  const j=await r.json();plist(j.map(x=>{const a=x.address||{};const n=a.city||a.town||a.village||a.hamlet||a.municipality||x.name||String(x.display_name).split(',')[0];
+   return {lat:parseFloat(x.lat),lon:parseFloat(x.lon),name:n,label:n+(a.county||a.state?', '+(a.county||a.state):'')+(a.country?' ('+a.country+')':'')}}),'Inga träffar.')}
+ catch(e){plist([],'Sökningen misslyckades. Kontrollera anslutningen.')}};
+$('ppos').onclick=()=>{if(!navigator.geolocation){plist([],'Platsinfo saknas på den här enheten.');return}
+ plist([],'Hämtar position…');
+ navigator.geolocation.getCurrentPosition(async pos=>{const la=pos.coords.latitude,lo=pos.coords.longitude;let n='Min position';
+  try{const r=await fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+lo+'&format=json&accept-language=sv');const j=await r.json();const a=j.address||{};n=a.city||a.town||a.village||a.hamlet||a.municipality||n}catch(e){}
+  wxSetPlace({lat:la,lon:lo,name:n})},()=>plist([],'Kunde inte hämta position (tillåt platsåtkomst).'),{timeout:10000})};
 setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-WX.t>600000)wxLoad()},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&Date.now()-WX.t>300000)wxLoad()});
 
