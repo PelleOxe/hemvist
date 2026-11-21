@@ -103,7 +103,7 @@ footer{font-size:12px;color:var(--soft);text-align:center;padding:6px;flex:none}
 <p style="font-size:12px;color:var(--soft)">Texten lagras okrypterad i molnet. Skriv inget känsligt på tavlan.</p>
 </dialog>
 <script>
-const APP_VERSION = "0.1.11";
+const APP_VERSION = "0.1.12";
 const $ = id => document.getElementById(id);
 const TYPES = {klocka:{n:'Klocka',w:4,h:4},timer:{n:'Kökstimer',w:4,h:6},tavla:{n:'Snabbmeddelande',w:6,h:4},vader:{n:'Väder',w:4,h:6},eko:{n:'Dagens Eko',w:4,h:4}};
 const KEY = 'hemvist_state';
@@ -218,7 +218,7 @@ function render(){
  $('edit').textContent=editing?'Klar':'Redigera';$('edit').className=editing?'on':'';
  const g=$('grid');g.innerHTML='';const v=S.views[S.cur];g.style.gridAutoFlow=v.blocks.some(x=>x.nl)?'row':'row dense';
  v.blocks.forEach((b,i)=>{
-  const d=document.createElement('div');d.className='blk';d.style.gridColumn='span '+b.w;d.style.gridRow='span '+b.h;if(b.nl)d.style.gridColumnStart='1';
+  const d=document.createElement('div');d.className='blk';d.style.gridColumn=(b.nl?'1 / ':'')+'span '+b.w;d.style.gridRow='span '+b.h;
   d.innerHTML='<h2>'+TYPES[b.t].n+'</h2><div class="body"></div><div class="tools"></div>';
   g.appendChild(d);
   UI[b.t](d.querySelector('.body'),b);
